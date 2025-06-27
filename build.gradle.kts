@@ -6,11 +6,11 @@ plugins {
     // Java support
     id("java")
     // Kotlin support
-    id("org.jetbrains.kotlin.jvm") version "1.8.20"
+    id("org.jetbrains.kotlin.jvm") version "2.2.0"
     // gradle-intellij-plugin - read more: https://github.com/JetBrains/gradle-intellij-plugin
-    id("org.jetbrains.intellij") version "1.15.0"
+    id("org.jetbrains.intellij.platform") version "2.6.0"
     // gradle-changelog-plugin - read more: https://github.com/JetBrains/gradle-changelog-plugin
-    id("org.jetbrains.changelog") version "2.0.0"
+    id("org.jetbrains.changelog") version "2.2.1"
     // see https://plugins.jetbrains.com/docs/intellij/tools-gradle-grammar-kit-plugin.html
     id("org.jetbrains.grammarkit") version "2022.3.2.1"
 }
@@ -18,11 +18,23 @@ plugins {
 group = properties("pluginGroup")
 version = properties("pluginVersion")
 
+dependencies {
+    intellijPlatform {
+        rustRover("2025.1.2")
+        bundledPlugin("com.jetbrains.rust")
+    }
+}
+
 // Configure project's dependencies
 repositories {
     mavenCentral()
-}
 
+    intellijPlatform {
+        defaultRepositories()
+
+
+    }
+}
 // Set the JVM language level used to build project. Use Java 11 for 2020.3+, and Java 17 for 2022.2+.
 kotlin {
     jvmToolchain (17)
@@ -32,14 +44,14 @@ sourceSets["main"].java.srcDirs("src/main/gen")
 
 // Configure gradle-intellij-plugin plugin.
 // Read more: https://github.com/JetBrains/gradle-intellij-plugin
-intellij {
-    pluginName.set(properties("pluginName"))
-    version.set(properties("platformVersion"))
-    type.set(properties("platformType"))
-
-    // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file.
-    plugins.set(properties("platformPlugins").split(',').map(String::trim).filter(String::isNotEmpty))
-}
+//intellij {
+//    pluginName.set(properties("pluginName"))
+//    version.set(properties("platformVersion"))
+//    type.set(properties("platformType"))
+//
+//    // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file.
+//    plugins.set(properties("platformPlugins").split(',').map(String::trim).filter(String::isNotEmpty))
+//}
 
 changelog {
     version.set(properties("pluginVersion"))
@@ -56,20 +68,21 @@ configure<JavaPluginExtension> {
 }
 
 tasks {
-    test {
-        useJUnitPlatform()
-    }
+//    test {
+//        useJUnitPlatform()
+//    }
 
     compileKotlin {
-        kotlinOptions.jvmTarget = "17"
+
     }
 
     wrapper {
         gradleVersion = properties("gradleVersion")
     }
 
+
     patchPluginXml {
-        version.set(properties("pluginVersion"))
+//        version.set(properties("pluginVersion"))
         sinceBuild.set(properties("pluginSinceBuild"))
         untilBuild.set(properties("pluginUntilBuild"))
 
@@ -104,12 +117,12 @@ tasks {
 
     // Configure UI tests plugin
     // Read more: https://github.com/JetBrains/intellij-ui-test-robot
-    runIdeForUiTests {
-        systemProperty("robot-server.port", "8082")
-        systemProperty("ide.mac.message.dialogs.as.sheets", "false")
-        systemProperty("jb.privacy.policy.text", "<!--999.999-->")
-        systemProperty("jb.consents.confirmation.enabled", "false")
-    }
+//    runIdeForUiTests {
+//        systemProperty("robot-server.port", "8082")
+//        systemProperty("ide.mac.message.dialogs.as.sheets", "false")
+//        systemProperty("jb.privacy.policy.text", "<!--999.999-->")
+//        systemProperty("jb.consents.confirmation.enabled", "false")
+//    }
 
     signPlugin {
         certificateChain.set(System.getenv("CERTIFICATE_CHAIN"))
@@ -123,6 +136,6 @@ tasks {
         // pluginVersion is based on the SemVer (https://semver.org) and supports pre-release labels, like 2.1.7-alpha.3
         // Specify pre-release label to publish the plugin in a custom Release Channel automatically. Read more:
         // https://plugins.jetbrains.com/docs/intellij/deployment.html#specifying-a-release-channel
-        channels.set(listOf(properties("pluginVersion").split('-').getOrElse(1) { "default" }.split('.').first()))
+        // channels.add(properties("pluginVersion").split('-').getOrElse(1) { "default" }.split('.').first())
     }
 }
