@@ -45,12 +45,12 @@ class RonToRustTypeReference(ronObjectName: RONObjectName) : RonToRustReferenceC
                         when {
                             element.text.removeSuffix(CompletionUtilCore.DUMMY_IDENTIFIER_TRIMMED).isEmpty() -> {
                                 val scope = GlobalSearchScope.projectScope(project)
-                                StubIndex.getInstance().getAllKeys(RsNamedElementIndex.KEY, project)
+                                StubIndex.getInstance().getAllKeys(RsNamedElementIndex.Helper.KEY, project)
                                     .asSequence()
                                     // avoid most generics early
                                     .filter { it.length >= 2 }
                                     .flatMap {
-                                        RsNamedElementIndex.findElementsByName(project, it, scope)
+                                        RsNamedElementIndex.Helper.findElementsByName(project, it, scope)
                                             .filterIsInstance<RsFieldsOwner>()
                                             .filter(RsFieldsOwner::isVisibleToRON)
                                     }
@@ -58,7 +58,7 @@ class RonToRustTypeReference(ronObjectName: RONObjectName) : RonToRustReferenceC
                             else -> {
                                 val scope = GlobalSearchScope.allScope(project)
                                 val start = element.text[0]
-                                StubIndex.getInstance().getAllKeys(RsNamedElementIndex.KEY, project)
+                                StubIndex.getInstance().getAllKeys(RsNamedElementIndex.Helper.KEY, project)
                                     .asSequence()
                                     // avoid most generics early
                                     .filter { it.length >= 2 }
@@ -66,7 +66,7 @@ class RonToRustTypeReference(ronObjectName: RONObjectName) : RonToRustReferenceC
                                     // but we have to require at least the first letter, for performance reasons
                                     .filter { it.startsWith(start) }
                                     .flatMap {
-                                        val elementsByName = RsNamedElementIndex.findElementsByName(project, it, scope)
+                                        val elementsByName = RsNamedElementIndex.Helper.findElementsByName(project, it, scope)
                                         elementsByName
                                             .filterIsInstance<RsFieldsOwner>()
                                             .filter(RsFieldsOwner::isVisibleToRON)
