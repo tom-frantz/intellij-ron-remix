@@ -21,6 +21,7 @@ import org.rust.lang.core.psi.*
 import org.rust.lang.core.psi.ext.*
 import org.rust.lang.core.resolve.knownItems
 import org.rust.lang.core.stubs.index.RsNamedElementIndex
+import org.rust.lang.core.thir.indexOfField
 import org.rust.lang.core.types.Substitution
 import org.rust.lang.core.types.infer.substitute
 import org.rust.lang.core.types.normType
@@ -291,9 +292,9 @@ private class InferenceBuilder(
         when {
             type is RsTypeAdt && type.item == fieldOwner.knownItems.Option -> null
             fieldOwner !is RsEnumVariant -> null
-            fieldOwner.namedFields.isNotEmpty() -> null
+            fieldOwner.expandedNamedFields.isNotEmpty() -> null
             else -> { fieldOwner
-                .fields
+                .expandedNamedFields
                 .singleOrNull()
                 ?.typeReference
                 ?.normType
@@ -307,7 +308,7 @@ private class InferenceBuilder(
     private fun TypeWithFieldOwner.hasFieldNamesByVariantNewType(fieldNames: Collection<NormalizedName>) =
         unwrapVariantNewType()
             ?.fieldOwner
-            ?.namedFields
+            ?.expandedNamedFields
             ?.map { fieldDeclaration -> fieldDeclaration.normalizedName }
             ?.containsAll(fieldNames)
             ?: false
@@ -317,7 +318,7 @@ private class InferenceBuilder(
             typeWithFieldOwner.hasFieldNamesByVariantNewType(fieldNames) ||
             typeWithFieldOwner
                 .fieldOwner
-                .namedFields
+                .expandedNamedFields
                 .map { fieldDeclaration -> fieldDeclaration.normalizedName }
                 .containsAll(fieldNames)
         }
@@ -342,11 +343,11 @@ private class InferenceBuilder(
         }
 
     private fun findNamesInProject(name: NormalizedName, project: Project) =
-        RsNamedElementIndex
+        RsNamedElementIndex.Helper
             .findElementsByName(project, name.indexedName, GlobalSearchScope.projectScope(project))
 
     private fun findNamesInGlobalScope(name: NormalizedName, project: Project) =
-        RsNamedElementIndex.findElementsByName(project, name.indexedName, GlobalSearchScope.allScope(project))
+        RsNamedElementIndex.Helper.findElementsByName(project, name.indexedName, GlobalSearchScope.allScope(project))
             .filter(RsNamedElement::isVisibleToRON)
 
     /**
@@ -356,9 +357,9 @@ private class InferenceBuilder(
         if (this is RsTypeAdt) {
             val item = this.item
             when {
-                item is RsStructItem && item.namedFields.isEmpty() -> {
+                item is RsStructItem && item.expandedNamedFields.isEmpty() -> {
                     // extension: unwrap_newtypes
-                    item.fields
+                    item.expandedNamedFields
                         .singleOrNull()
                         ?.typeReference
                         ?.normType
@@ -385,7 +386,7 @@ private class InferenceBuilder(
      */
     private data class TypeWithFieldOwner(val type: RsType, val fieldOwner: RsFieldsOwner) {
         operator fun get(index: Int): RsType? = fieldOwner
-            .fields
+            .expandedFields
             .getOrNull(index)
             ?.typeReference
             ?.normType
@@ -450,7 +451,7 @@ private class InferenceBuilder(
         val inferredFields = bestMatchingFieldOwners
             .flatMap { setOfNotNull(it, it.unwrapVariantNewType()) }
             .flatMap { it.fieldOwner
-                .namedFields
+                .expandedNamedFields
                 .mapNotNull { declaration -> RsInferredField.fromDecl(declaration, it.type.typeParameterValues) }
             }
 
@@ -482,8 +483,8 @@ private class InferenceBuilder(
         is RsTypeArray -> listOf(this.base)
         is RsTypeAdt -> {
             when (val item = this.item) {
-                is RsStructItem -> listOfNotNull(item.fields.getOrNull(index)?.typeReference?.normType)
-                is RsEnumItem -> item.variants.mapNotNull { it.fields.getOrNull(index)?.typeReference?.normType }
+                is RsStructItem -> listOfNotNull(item.expandedFields.getOrNull(index)?.typeReference?.normType)
+                is RsEnumItem -> item.variants.mapNotNull { it.expandedFields.getOrNull(index)?.typeReference?.normType }
                 else -> error("Rust ADT item was neither struct nor enum")
             }
         }
@@ -510,7 +511,7 @@ private class InferenceBuilder(
                 val project = name.project
                 val possibleFieldOwner = possibleTypes.filterFieldOwner()
                 val matchByName = possibleFieldOwner.filter { it.hasName(nameText) }
-                val matchByNameAndIsTuple = matchByName.filter { it.fieldOwner.namedFields.isEmpty() }
+                val matchByNameAndIsTuple = matchByName.filter { it.fieldOwner.expandedNamedFields.isEmpty() }
                 val fieldOwner = matchByNameAndIsTuple.ifEmpty {
                     matchByName.ifEmpty {
                         // We don't test, if these are tuples, because it might be an object,
@@ -592,7 +593,7 @@ private class InferenceBuilder(
             .flatMap { typeWithFieldOwner ->
                 val typeParamValues = typeWithFieldOwner.type.typeParameterValues
                 typeWithFieldOwner.fieldOwner
-                        .namedFields
+                        .expandedNamedFields
                         .mapNotNull { RsInferredField.fromDecl(it, typeParamValues) }
                         .filter { namedField -> namedField.name !in usedFieldNames }
             }.toSet()
